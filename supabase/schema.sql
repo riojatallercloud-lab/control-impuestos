@@ -41,3 +41,12 @@ create policy sii_miembros_ver on public.sii_miembros for select to authenticate
 revoke all on public.sii_meses, public.sii_config, public.sii_miembros from anon;
 grant select, insert, update, delete on public.sii_meses, public.sii_config to authenticated;
 grant select on public.sii_miembros to authenticated;
+
+-- Gestión de usuarios desde la app (solo miembros; nadie puede quitarse a sí mismo)
+drop policy if exists sii_miembros_agregar on public.sii_miembros;
+create policy sii_miembros_agregar on public.sii_miembros for insert to authenticated
+  with check ((select public.sii_es_miembro()));
+drop policy if exists sii_miembros_quitar on public.sii_miembros;
+create policy sii_miembros_quitar on public.sii_miembros for delete to authenticated
+  using ((select public.sii_es_miembro()) and lower(email) <> lower(auth.jwt()->>'email'));
+grant insert, delete on public.sii_miembros to authenticated;

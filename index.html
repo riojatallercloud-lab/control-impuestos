@@ -208,6 +208,16 @@ pre,.scroll{overflow-x:auto}
       <div class="row"><label style="width:16em">Remanente mes anterior para <span id="mRemL"></span><input id="mRem" inputmode="numeric" placeholder="Automático"></label><button class="ghost" id="mRemB">Guardar</button></div>
       <p class="note">Déjalo vacío para que se arrastre solo desde el mes anterior. El SII reajusta el remanente por la variación de la UTM; si quieres el monto exacto, cópialo desde tu propuesta F29.</p>
     </div>
+    <div class="panel">
+      <h2>Usuarios con acceso</h2>
+      <p class="note" style="margin-top:0">Solo estas personas pueden entrar y ver los datos. Cada una ingresa con su propio correo.</p>
+      <div class="scroll"><table id="uTab"></table></div>
+      <form id="uForm" class="row" style="margin-top:12px">
+        <label style="flex:2 1 220px">Correo<input type="email" id="uEmail" required></label>
+        <label style="flex:1 1 160px">Nombre<input id="uNom"></label>
+        <button class="pri" type="submit">Agregar usuario</button>
+      </form>
+    </div>
   </section>
 </div></div>
 
@@ -267,7 +277,20 @@ async function load(){st('Cargando datos…');
   if(a.error){st('Sin acceso a los datos');showLogin(a.error.message.includes('permission')||a.error.code==='42501'?'Tu correo no está autorizado. Pide al administrador que te agregue.':'Error: '+a.error.message);return}
   const o={};for(const r of a.data||[])o[r.periodo]={docs:Array.isArray(r.docs)?r.docs:[],rem:r.rem};S.meses=o;
   if(b.data&&b.data.data){Object.assign(S.cfg,b.data.data);fillCfg()}
-  st('Datos al día');render()}
+  st('Datos al día');render();loadUsers()}
+async function loadUsers(){if(!sb)return;const{data,error}=await sb.from('sii_miembros').select('email,nombre,creado').order('creado');
+  if(error){$('#uTab').innerHTML='<tbody><tr><td class="warn">No se pudo cargar la lista de usuarios.</td></tr></tbody>';return}
+  const me=($('#who').textContent||'').toLowerCase();
+  $('#uTab').className='stack';
+  $('#uTab').innerHTML='<thead><tr><th>Correo</th><th>Nombre</th><th>Desde</th><th></th></tr></thead><tbody>'+data.map(u=>'<tr><td>'+esc(u.email)+'</td><td>'+esc(u.nombre||'')+'</td><td>'+esc(new Date(u.creado).toLocaleDateString('es-CL'))+'</td><td>'+(u.email.toLowerCase()===me?'<small>(tú)</small>':'<button class="sm ghost" data-urm="'+esc(u.email)+'">Quitar</button>')+'</td></tr>').join('')+'</tbody>'}
+$('#uForm').onsubmit=async e=>{e.preventDefault();const em=$('#uEmail').value.trim().toLowerCase();if(!em)return;
+  const{error}=await sb.from('sii_miembros').insert({email:em,nombre:$('#uNom').value.trim()||null});
+  if(error){toast(error.code==='23505'?'Ese correo ya tiene acceso':'No se pudo agregar: '+error.message);return}
+  $('#uForm').reset();toast(em+' ya puede entrar con su correo');loadUsers()};
+let uPend=null;
+$('#uTab').onclick=async e=>{const b=e.target.closest('[data-urm]');if(!b)return;const em=b.dataset.urm;
+  if(uPend!==em){uPend=em;b.textContent='¿Seguro? Quitar';setTimeout(()=>{if(uPend===em){uPend=null;b.textContent='Quitar'}},4000);return}
+  uPend=null;const{error}=await sb.from('sii_miembros').delete().eq('email',em);if(error){toast('No se pudo quitar: '+error.message);return}toast(em+' ya no tiene acceso');loadUsers()};
 function showLogin(msg){$('#login').hidden=false;$('#lMsg').textContent=msg||''}
 async function init(){
   render();
@@ -327,7 +350,7 @@ function renderList(){
   $('#lTtl').textContent='Documentos de '+mName(k);
   if(!docs.length){$('#lst').innerHTML='<tbody><tr><td class="empty">'+(q||S.filtro?'Nada coincide con el filtro.':'Aún no hay documentos en '+esc(mName(k))+'. Ingrésalos arriba o impórtalos desde el SII.')+'</td></tr></tbody>';$('#lst').className='';return}
   $('#lst').className='stack';
-  $('#lst').innerHTML='<thead><tr><th>Fecha</th><th>Tipo</th><th>Folio</th><th>RUT</th><th>Razón social</th><th class="n">Neto</th><th class="n">IVA</th><th class="n">Total</th><th></th></tr></thead><tbody>'+docs.map(d=>{const s=sg(d.tipo);return '<tr><td>'+esc((d.fecha||'').split('-').reverse().join('/'))+'</td><td>'+(d.lado==='V'?'Venta':'Compra')+' · '+esc(tName(d.lado,d.tipo))+'</td><td>'+esc(d.folio)+'</td><td class="r">'+esc(fmtRut(d.rut))+'</td>'<td>'+esc(d.razon)+'</td><td class="n">'+$$(s*num(d.neto))+'</td><td class="n">'+$$(s*num(d.iva||d.ret))+(d.ivaNR?' <small>(no rec.)</small>':'')+'</td><td class="n">'+$$(s*num(d.total))+'</td><td><button class="sm ghost" data-ed="'+esc(d.id)+'">Editar</button></td></tr>'}).join('')+'</tbody>';
+  $('#lst').innerHTML='<thead><tr><th>Fecha</th><th>Tipo</th><th>Folio</th><th>RUT</th><th>Razón social</th><th class="n">Neto</th><th class="n">IVA</th><th class="n">Total</th><th></th></tr></thead><tbody>'+docs.map(d=>{const s=sg(d.tipo);return '<tr><td>'+esc((d.fecha||'').split('-').reverse().join('/'))+'</td><td>'+(d.lado==='V'?'Venta':'Compra')+' · '+esc(tName(d.lado,d.tipo))+'</td><td>'+esc(d.folio)+'</td><td class="r">'+esc(fmtRut(d.rut))+'</td><td>'+esc(d.razon)+'</td><td class="n">'+$$(s*num(d.neto))+'</td><td class="n">'+$$(s*num(d.iva||d.ret))+(d.ivaNR?' <small>(no rec.)</small>':'')+'</td><td class="n">'+$$(s*num(d.total))+'</td><td><button class="sm ghost" data-ed="'+esc(d.id)+'">Editar</button></td></tr>'}).join('')+'</tbody>';
 }
 function renderAnual(){
   const y=+$('#ay').value||+S.per.slice(0,4);$('#ay').value=y;$('#aY').textContent=y;
