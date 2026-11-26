@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#c8371e">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg">
+<title>Control de impuestos SII</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: libro contable de taller, claro y sobrio, cifras primero.
+   IDEA: el formulario 29 del SII como hoja de trabajo viva.
+   PICTURE: el monto a pagar en grande junto a la hoja F29 con sus códigos.
+   COLOUR and TYPE: piedra, negro, ladrillo, paneles blancos; Schibsted Grotesk.
+   LAYOUT: barra de período, resultado + hoja F29, luego pestañas de trabajo. */
+:root{color-scheme:light dark;--bg:light-dark(#e7e4df,#171513);--ink:light-dark(#151413,#ece8e2);--panel:light-dark(#fff,#221f1c);--line:light-dark(#d3cec6,#3a3530);--mute:light-dark(#5f5a54,#a8a199);--acc:#c8371e;--acc2:light-dark(#c8371e,#ff6a4d);--ok:light-dark(#1d6b3a,#6fd39a)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Schibsted Grotesk",system-ui,sans-serif;overflow-x:clip}
+.band{padding:clamp(20px,3vw,40px) max(4vw,16px)}
+.wrap{max-width:1240px;margin:0 auto}
+h1{font-size:clamp(26px,3.4vw,38px);line-height:1.05;margin:0;text-wrap:balance;font-weight:700}
+h2{font-size:22px;line-height:1.15;margin:0 0 12px}
+h3{font-size:17px;margin:18px 0 8px}
+.top{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:end;justify-content:space-between}
+.sub{color:var(--mute);margin:6px 0 0}
+.per{display:flex;gap:6px;align-items:center}
+button,input,select{font:inherit;font-size:16px;color:inherit}
+button{min-height:44px;padding:0 16px;border:1px solid var(--ink);background:var(--panel);border-radius:6px;cursor:pointer}
+button.pri{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:700}
+button.ghost{border-color:var(--line)}
+button.sm{min-height:36px;padding:0 10px;font-size:14px}
+button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid var(--acc2);outline-offset:2px}
+input,select{min-height:44px;padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel);width:100%}
+label{display:block;font-size:14px;color:var(--mute)}
+label>input,label>select{margin-top:4px;color:var(--ink)}
+.hero{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-top:20px}
+.res{background:var(--acc);color:#fff;padding:clamp(20px,3vw,36px);display:flex;flex-direction:column;gap:10px;justify-content:space-between}
+.res .big{font-size:clamp(38px,6vw,68px);font-weight:700;line-height:1;white-space:nowrap;letter-spacing:-.01em}
+.res p{margin:0}.res .k{opacity:.9;font-size:15px}
+.res .pills{display:flex;flex-wrap:wrap;gap:8px}
+.pill{background:rgba(255,255,255,.16);border-radius:999px;padding:4px 12px;font-size:14px;white-space:nowrap}
+.f29{padding:clamp(14px,2vw,24px)}
+table{border-collapse:collapse;width:100%}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:13px;color:var(--mute);font-weight:500}
+td.r{white-space:nowrap}td.n,th.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+td.c{color:var(--mute);font-size:13px;width:3.5em;white-space:nowrap}
+tr.tot td{font-weight:700;border-top:2px solid var(--ink);border-bottom:0;font-size:18px}
+tr.sec td{background:light-dark(#f3f1ed,#1c1a17);font-size:13px;color:var(--mute);font-weight:700;padding:6px 10px}
+.neg{color:var(--acc2)}
+nav.tabs{display:flex;gap:4px;margin-top:24px;border-bottom:2px solid var(--ink);overflow-x:auto}
+nav.tabs a{flex:none;padding:10px 16px;color:var(--ink);text-decoration:none;border-radius:6px 6px 0 0;min-height:44px;display:flex;align-items:center}
+nav.tabs a[aria-current=page]{background:var(--ink);color:var(--bg);font-weight:700}
+.view{display:none;padding-top:20px}.view.on{display:block}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:clamp(14px,2vw,24px);margin-bottom:18px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+.seg{display:flex;border:1px solid var(--ink);border-radius:6px;overflow:hidden;flex:none}
+.seg button{border:0;border-radius:0;background:transparent}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg);font-weight:700}
+.note{font-size:14px;color:var(--mute);margin:8px 0 0}
+.warn{color:var(--acc2);font-size:14px}
+.empty{padding:28px;text-align:center;color:var(--mute)}
+.drop{border:2px dashed var(--line);border-radius:10px;padding:28px;text-align:center}
+.drop.over{border-color:var(--acc);background:light-dark(#fbeeea,#2a1a16)}
+.bars .b{display:grid;grid-template-columns:4.5em minmax(0,1fr) 8.5em;gap:10px;align-items:center;padding:3px 0;font-size:14px}
+.bars .t{height:16px;background:var(--acc);border-radius:3px;transition:width .4s}
+.bars .z{color:var(--mute)}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;display:none;gap:12px;align-items:center;z-index:9;max-width:92vw}
+#toast button{min-height:34px;background:transparent;color:inherit;border-color:currentColor}
+#st{font-size:13px;color:var(--mute)}
+footer{color:var(--mute);font-size:14px}
+pre,.scroll{overflow-x:auto}
+@media(max-width:760px){.hero{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:600px){table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:8em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:7.5em;margin-inline-start:-8em;white-space:normal;color:var(--mute)}.stack td:empty{display:none}.bars .b{grid-template-columns:3.5em minmax(0,1fr) 7em}}
+@media(prefers-reduced-motion:reduce){.bars .t{transition:none}}
+</style><script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script></head>
+<body>
+<div class="band"><div class="wrap">
+  <div class="top">
+    <div>
+      <h1 id="ttl">Control de impuestos</h1>
+      <p class="sub"><span id="emp">Configura tu RUT en Ajustes</span> · <span id="who"></span> · <span id="st">Conectando…</span></p>
+    </div>
+    <div class="per">
+      <button class="ghost" id="pPrev" aria-label="Mes anterior">‹</button>
+      <input type="month" id="per" aria-label="Período tributario" style="width:11em">
+      <button class="ghost" id="pNext" aria-label="Mes siguiente">›</button>
+      <button class="ghost" id="bOut" title="Cerrar sesión">Salir</button>
+    </div>
+  </div>
+
+  <section class="hero" aria-label="Resultado del mes">
+    <div class="res">
+      <div>
+        <p class="k" id="rLbl">Total a pagar en el F29</p>
+        <p class="big" id="rBig">$0</p>
+      </div>
+      <div class="pills" id="rPills"></div>
+      <p class="k" id="rDue"></p>
+    </div>
+    <div class="f29"><div class="scroll"><table id="f29"></table></div></div>
+  </section>
+
+  <nav class="tabs" aria-label="Secciones">
+    <a href="#documentos">Documentos</a><a href="#importar">Importar SII</a><a href="#anual">Resumen anual</a><a href="#ajustes">Ajustes</a>
+  </nav>
+
+  <section class="view" id="v-documentos">
+    <div class="panel">
+      <h2 id="fTtl">Ingresar documento</h2>
+      <form id="fm" autocomplete="off">
+        <div class="row" style="margin-bottom:12px">
+          <div class="seg" role="group" aria-label="Tipo de operación"><button type="button" data-lado="V" aria-pressed="true">Venta (ingreso)</button><button type="button" data-lado="C" aria-pressed="false">Compra (egreso)</button></div>
+        </div>
+        <div class="grid">
+          <label>Tipo de documento<select id="fTipo"></select></label>
+          <label>Fecha<input type="date" id="fFecha" required></label>
+          <label>Período F29<input type="month" id="fPer" required></label>
+          <label>Folio<input id="fFolio" inputmode="numeric"></label>
+          <label><span id="lRut">RUT cliente</span><input id="fRut" placeholder="76.123.456-7"></label>
+          <label style="grid-column:span 2"><span id="lRaz">Razón social</span><input id="fRaz"></label>
+        </div>
+        <div class="grid" style="margin-top:12px">
+          <label><span id="lNeto">Neto</span><input id="fNeto" inputmode="numeric" data-m></label>
+          <label id="wExe">Exento<input id="fExe" inputmode="numeric" data-m></label>
+          <label id="wIva"><span id="lIva">IVA 19%</span><input id="fIva" inputmode="numeric" data-m></label>
+          <label id="wRet">Retención honorarios<input id="fRet" inputmode="numeric" data-m></label>
+          <label><span id="lTot">Total</span><input id="fTot" inputmode="numeric" data-m></label>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <label id="wNR" style="display:flex;gap:8px;align-items:center;min-height:44px;color:var(--ink)"><input type="checkbox" id="fNR" style="width:22px;min-height:22px">IVA no recuperable (no da crédito)</label>
+        </div>
+        <p class="warn" id="fWarn"></p>
+        <div class="row" style="margin-top:8px">
+          <button class="pri" type="submit" id="fSave">Agregar documento</button>
+          <button class="ghost" type="button" id="fCancel" hidden>Cancelar edición</button>
+          <button class="ghost" type="button" id="fDel" hidden>Eliminar</button>
+        </div>
+      </form>
+    </div>
+    <div class="panel">
+      <div class="row" style="justify-content:space-between;margin-bottom:10px">
+        <h2 id="lTtl" style="margin:0">Documentos del mes</h2>
+        <div class="row">
+          <div class="seg" role="group" aria-label="Filtro"><button type="button" data-f="" aria-pressed="true">Todos</button><button type="button" data-f="V" aria-pressed="false">Ventas</button><button type="button" data-f="C" aria-pressed="false">Compras</button></div>
+          <input id="q" placeholder="Buscar RUT, folio o nombre" style="width:15em">
+          <button class="ghost" id="bCopy">Copiar CSV</button>
+          <button class="ghost" id="bDl">Descargar CSV</button>
+        </div>
+      </div>
+      <div class="scroll"><table id="lst"></table></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-importar">
+    <div class="panel">
+      <h2>Importar desde el SII</h2>
+      <p style="margin-top:0">Arrastra aquí el <b>Registro de Compras y Ventas</b> (CSV descargado en sii.cl › Servicios online › Factura electrónica › Registro de compras y ventas › Descargar detalles) o los <b>XML</b> de tus facturas electrónicas. Puedes soltar varios archivos a la vez.</p>
+      <div class="drop" id="drop">
+        <p style="margin:0 0 10px">Suelta los archivos CSV o XML</p>
+        <input type="file" id="files" multiple accept=".csv,.xml,.txt" style="max-width:340px;margin:0 auto">
+      </div>
+      <div id="prev" style="margin-top:16px"></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-anual">
+    <div class="panel">
+      <div class="row" style="justify-content:space-between"><h2 style="margin:0">Resumen del año <span id="aY"></span></h2>
+        <label style="width:8em">Año<input type="number" id="ay" min="2015" max="2100"></label></div>
+      <h3>Pagado en F29 por mes</h3>
+      <div class="bars" id="bars"></div>
+      <div class="scroll" style="margin-top:14px"><table id="atab"></table></div>
+    </div>
+    <div class="panel">
+      <h2>Estimación del impuesto anual a la renta (Operación Renta de abril)</h2>
+      <div class="grid" style="margin-bottom:10px"><label>Otros gastos del año sin factura (sueldos, imposiciones, arriendo, etc.)<input id="aOtros" inputmode="numeric"></label></div>
+      <div class="scroll"><table id="renta"></table></div>
+      <p class="note" id="rNote"></p>
+    </div>
+  </section>
+
+  <section class="view" id="v-ajustes">
+    <div class="panel">
+      <h2>Datos de la empresa y tasas</h2>
+      <form id="cf" class="grid">
+        <label>RUT de la empresa<input id="cRut" placeholder="76.123.456-7"></label>
+        <label style="grid-column:span 2">Razón social<input id="cRaz" placeholder="Rioja Group SpA"></label>
+        <label style="grid-column:span 2">Régimen tributario<select id="cReg">
+          <option value="pp3">Pro Pyme General (14 D N°3)</option>
+          <option value="pp8">Pro Pyme Transparente (14 D N°8)</option>
+          <option value="14a">Régimen General (14 A)</option></select></label>
+        <label>Tasa PPM %<input id="cPpm" inputmode="decimal"></label>
+        <label>Tasa primera categoría %<input id="cIdpc" inputmode="decimal"></label>
+        <label>Retención boletas honorarios %<input id="cRet" inputmode="decimal"></label>
+        <label>Remanente crédito fiscal inicial $<input id="cRem" inputmode="numeric"></label>
+        <label>Mes de ese remanente<input type="month" id="cRemM"></label>
+        <div style="grid-column:1/-1" class="row"><button class="pri" type="submit">Guardar ajustes</button><button class="ghost" type="button" id="cDef">Usar tasas 2026 del régimen</button></div>
+      </form>
+      <p class="note">Tasas 2026 por defecto: Pro Pyme General PPM 0,125% (rebajada a la mitad por la Ley 21.755 para 2025 a 2027; 0,25% si tus ingresos del año anterior superaron 50.000 UF) e impuesto de primera categoría 12,5%. Pro Pyme Transparente PPM 0,2% (sin primera categoría). Régimen General 27% con PPM variable que te informa el SII. Retención honorarios 2026: 15,25%. Puedes ver tu régimen en sii.cl › Mi SII › Datos personales y tributarios.</p>
+    </div>
+    <div class="panel">
+      <h2>Ajuste manual del remanente del mes</h2>
+      <div class="row"><label style="width:16em">Remanente mes anterior para <span id="mRemL"></span><input id="mRem" inputmode="numeric" placeholder="Automático"></label><button class="ghost" id="mRemB">Guardar</button></div>
+      <p class="note">Déjalo vacío para que se arrastre solo desde el mes anterior. El SII reajusta el remanente por la variación de la UTM; si quieres el monto exacto, cópialo desde tu propuesta F29.</p>
+    </div>
+  </section>
+</div></div>
+
+<footer class="band" style="padding-top:0"><div class="wrap">
+  <p><b>Importante:</b> los resultados son una estimación según la normativa del SII vigente en 2026 y no reemplazan la revisión de tu contador. El F29 vence el día 20 del mes siguiente para facturadores electrónicos que declaran por internet (si cae en fin de semana o festivo, pasa al día hábil siguiente). No considera IVA de uso común proporcional, impuestos específicos ni otras retenciones; la renta anual es aproximada (no incluye depreciación, ajustes ni créditos).</p>
+</div></footer>
+
+<div id="login" hidden style="position:fixed;inset:0;background:var(--bg);z-index:20;display:grid;place-items:center;padding:16px">
+  <form id="lForm" class="panel" style="width:min(420px,100%)">
+    <h2>Control de impuestos</h2><p class="sub" style="margin:0 0 14px">Ingresa con tu correo autorizado.</p>
+    <label>Correo<input type="email" id="lEmail" required autocomplete="email"></label>
+    <label id="lCodeW" hidden style="margin-top:10px">Código del correo<input id="lCode" inputmode="numeric" autocomplete="one-time-code"></label>
+    <button class="pri" id="lBtn" style="margin-top:14px;width:100%">Enviarme el acceso</button>
+    <p class="note" id="lMsg"></p>
+  </form>
+</div>
+<div id="toast" role="status"><span id="tMsg"></span><button id="tUndo" hidden>Deshacer</button></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.min.js"></script>
+<script>
+{
+const $=s=>document.querySelector(s);
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clp=new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0});
+const $$=n=>clp.format(Math.round(n||0));
+const num=v=>{if(typeof v==='number')return v;const s=String(v??'').replace(/\$|\s/g,'').replace(/\.(?=\d{3}(\D|$))/g,'').replace(',','.');const n=parseFloat(s);return isFinite(n)?n:0};
+const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const mName=k=>{const[y,m]=k.split('-');return MESES[+m-1]+' '+y};
+const addM=(k,d)=>{let[y,m]=k.split('-').map(Number);m+=d;while(m<1){m+=12;y--}while(m>12){m-=12;y++}return y+'-'+String(m).padStart(2,'0')};
+const TIPOS={V:[['33','Factura electrónica'],['34','Factura exenta'],['39','Boleta electrónica'],['41','Boleta exenta'],['48','Voucher / comprobante de pago'],['56','Nota de débito'],['61','Nota de crédito']],
+ C:[['33','Factura electrónica'],['34','Factura exenta'],['46','Factura de compra'],['56','Nota de débito'],['61','Nota de crédito'],['914','Declaración de importación'],['BHE','Boleta de honorarios recibida']]};
+const tName=(l,t)=>(TIPOS[l].find(x=>x[0]===t)||[t,'Doc. '+t])[1];
+const EXENTOS=['34','41'],BOLETAS=['39','41','48'];
+const sg=t=>t==='61'?-1:1;
+const REG={pp3:{ppm:0.125,idpc:12.5},pp8:{ppm:0.2,idpc:0},'14a':{ppm:1,idpc:27}};
+const today=new Date(),curKey=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0');
+const S={cfg:{rut:'',raz:'',reg:'pp3',ppm:0.125,idpc:12.5,ret:15.25,remIni:0,remMes:'',otros:{}},meses:{},per:curKey,filtro:'',edit:null,lado:'V',pend:[]};
+
+const normRut=r=>String(r||'').toUpperCase().replace(/[^0-9K]/g,'');
+const fmtRut=r=>{const n=normRut(r);if(n.length<2)return n;const b=n.slice(0,-1),d=n.slice(-1);return b.replace(/\B(?=(\d{3})+(?!\d))/g,'.')+'-'+d};
+const rutOk=r=>{const n=normRut(r);if(n.length<2)return false;let s=0,m=2;for(let i=n.length-2;i>=0;i--){s+=(+n[i])*m;m=m===7?2:m+1}const d=11-s%11;return n.slice(-1)===(d===11?'0':d===10?'K':String(d))};
+const idOf=d=>(d.lado+'_'+d.tipo+'_'+(normRut(d.rut)||'x')+'_'+String(d.folio||'').replace(/[^0-9A-Za-z-]/g,'')).slice(0,180)||('m_'+Date.now());
+
+/* ---------- almacenamiento ---------- */
+const st=t=>$('#st').textContent=t;
+let toastT;function toast(msg,undo){$('#tMsg').textContent=msg;const u=$('#tUndo');u.hidden=!undo;u.onclick=()=>{undo();$('#toast').style.display='none'};$('#toast').style.display='flex';clearTimeout(toastT);toastT=setTimeout(()=>$('#toast').style.display='none',6000)}
+const SB_URL='https://vigimpspxacmhghoukzm.supabase.co',SB_KEY='sb_publishable_ZrtSKnCzGBoGoKMX9coQ5g_Biuj78Eg';
+let sb=null,uid=null;
+function persist(){}
+const chains={};
+function q(k,fn){chains[k]=(chains[k]||Promise.resolve()).then(fn).catch(e=>toast('No se pudo guardar: '+(e&&e.message||'error')+'. Reintenta.'));return chains[k]}
+function saveMes(k){const m=S.meses[k]||{docs:[],rem:null};const row={periodo:k,docs:m.docs,rem:m.rem??null,updated_at:new Date().toISOString(),updated_by:uid};
+  q('m'+k,async()=>{const{error}=await sb.from('sii_meses').upsert(row);if(error)throw error;st('Guardado · '+new Date().toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'}))})}
+function saveCfg(){const c={...S.cfg};q('cfg',async()=>{const{error}=await sb.from('sii_config').upsert({id:1,data:c,updated_at:new Date().toISOString()});if(error)throw error})}
+async function load(){st('Cargando datos…');
+  const[a,b]=await Promise.all([sb.from('sii_meses').select('periodo,docs,rem'),sb.from('sii_config').select('data').eq('id',1).maybeSingle()]);
+  if(a.error){st('Sin acceso a los datos');showLogin(a.error.message.includes('permission')||a.error.code==='42501'?'Tu correo no está autorizado. Pide al administrador que te agregue.':'Error: '+a.error.message);return}
+  const o={};for(const r of a.data||[])o[r.periodo]={docs:Array.isArray(r.docs)?r.docs:[],rem:r.rem};S.meses=o;
+  if(b.data&&b.data.data){Object.assign(S.cfg,b.data.data);fillCfg()}
+  st('Datos al día');render()}
+function showLogin(msg){$('#login').hidden=false;$('#lMsg').textContent=msg||''}
+async function init(){
+  render();
+  if(!window.supabase||SB_URL.startsWith('__')){st('Sin conexión a la base de datos');showLogin('La app aún no está conectada a la base de datos.');return}
+  sb=window.supabase.createClient(SB_URL,SB_KEY);
+  const{data:{session}}=await sb.auth.getSession();
+  sb.auth.onAuthStateChange((ev,ses)=>{if(ev==='SIGNED_IN'&&ses&&!uid){uid=ses.user.id;$('#login').hidden=true;$('#who').textContent=ses.user.email;load()}if(ev==='SIGNED_OUT'){uid=null;S.meses={};render();showLogin()}});
+  if(session){uid=session.user.id;$('#who').textContent=session.user.email;load()}else showLogin();
+  let lf=0;window.addEventListener('focus',()=>{if(uid&&Date.now()-lf>60000){lf=Date.now();load()}});
+}
+$('#lForm').onsubmit=async e=>{e.preventDefault();const em=$('#lEmail').value.trim();if(!sb)return;
+  if(!$('#lCodeW').hidden){const{error}=await sb.auth.verifyOtp({email:em,token:$('#lCode').value.trim(),type:'email'});$('#lMsg').textContent=error?'Código incorrecto o vencido.':'';return}
+  const{error}=await sb.auth.signInWithOtp({email:em,options:{shouldCreateUser:true,emailRedirectTo:location.href.split('#')[0]}});
+  if(error){$('#lMsg').textContent='No se pudo enviar: '+error.message;return}
+  $('#lCodeW').hidden=false;$('#lBtn').textContent='Entrar';$('#lMsg').textContent='Te enviamos un correo con un enlace y un código. Abre el enlace o escribe el código aquí.'};
+$('#bOut').onclick=()=>sb&&sb.auth.signOut();
+
+/* ---------- cálculo ---------- */
+const memo={};
+function calc(k){
+  if(memo[k])return memo[k];
+  const m=S.meses[k]||{docs:[],rem:null},r={k,deb:0,cred:0,ventas:0,nV:0,nC:0,compras:0,ivaNR:0,hon:0,retHon:0,ret46:0};
+  for(const d of m.docs){const s=sg(d.tipo);
+    if(d.lado==='V'){r.nV++;r.deb+=s*num(d.iva);r.ventas+=s*(num(d.neto)+num(d.exento))}
+    else{r.nC++;if(d.tipo==='BHE'){r.hon+=num(d.neto);r.retHon+=num(d.ret);continue}
+      r.cred+=s*num(d.iva);r.ivaNR+=s*num(d.ivaNR);r.compras+=s*(num(d.neto)+num(d.exento)+num(d.ivaNR));if(d.tipo==='46')r.ret46+=num(d.iva)}}
+  const keys=Object.keys(S.meses).filter(x=>(S.meses[x].docs||[]).length);if(S.cfg.remMes)keys.push(S.cfg.remMes);keys.sort();
+  if(m.rem!=null&&m.rem!=='')r.remAnt=num(m.rem);else if(k===S.cfg.remMes)r.remAnt=num(S.cfg.remIni);else if(keys.length&&k>keys[0])r.remAnt=calc(addM(k,-1)).remSig;else r.remAnt=0;
+  const det=r.deb-r.cred-r.remAnt;r.ivaPag=Math.max(0,Math.round(det));r.remSig=Math.max(0,Math.round(-det));
+  r.ppm=Math.max(0,Math.round(r.ventas*num(S.cfg.ppm)/100));
+  r.total=r.ivaPag+r.ppm+Math.round(r.retHon)+Math.round(r.ret46);
+  return memo[k]=r;
+}
+
+/* ---------- render ---------- */
+function render(){
+  for(const k in memo)delete memo[k];
+  const k=S.per,r=calc(k);
+  $('#per').value=k;
+  $('#emp').textContent=S.cfg.raz||S.cfg.rut?((S.cfg.raz||'')+(S.cfg.rut?' · RUT '+fmtRut(S.cfg.rut):'')):'Configura tu RUT en Ajustes';
+  $('#ttl').textContent='Impuestos de '+mName(k);
+  $('#rBig').textContent=$$(r.total);
+  $('#rLbl').textContent=r.total>0?'Total a pagar en el F29 de '+mName(k):'Nada que pagar en el F29 de '+mName(k);
+  const due=addM(k,1).split('-');$('#rDue').textContent='Vence el 20 de '+MESES[+due[1]-1]+' de '+due[0];
+  $('#rPills').innerHTML=[r.nV+' ventas',r.nC+' compras',r.remSig?'Remanente '+$$(r.remSig)+' pasa al mes siguiente':''].filter(Boolean).map(t=>'<span class="pill">'+esc(t)+'</span>').join('');
+  const L=[['sec','IVA'],['538','Débito fiscal (IVA de tus ventas)',r.deb],['537','Crédito fiscal (IVA de tus compras)',-r.cred],['504','Remanente crédito mes anterior',-r.remAnt],
+   ['89',r.ivaPag?'IVA determinado a pagar':'IVA a pagar (hay remanente)',r.ivaPag],['77','Remanente para el mes siguiente',r.remSig],['sec','PPM y retenciones'],
+   ['563','Base PPM (ventas netas + exentas)',r.ventas],['115','Tasa PPM',null,String(S.cfg.ppm).replace('.',',')+'%'],['62','PPM a pagar',r.ppm],['151','Retención boletas de honorarios',r.retHon]];
+  if(r.ret46)L.push(['','IVA retenido en facturas de compra',r.ret46]);
+  $('#f29').innerHTML='<thead><tr><th>Cód.</th><th>Concepto</th><th class="n">Monto</th></tr></thead><tbody>'+L.map(x=>x[0]==='sec'?'<tr class="sec"><td colspan="3">'+esc(x[1])+'</td></tr>':'<tr><td class="c">'+esc(x[0])+'</td><td>'+esc(x[1])+'</td><td class="n'+(x[2]<0?' neg':'')+'">'+(x[3]?esc(x[3]):$$(x[2]))+'</td></tr>').join('')+'<tr class="tot"><td class="c">91</td><td>Total a pagar</td><td class="n">'+$$(r.total)+'</td></tr></tbody>';
+  renderList();renderAnual();renderPrev();
+  $('#mRemL').textContent=mName(k);const mr=(S.meses[k]||{}).rem;$('#mRem').value=mr==null?'':mr;
+}
+function renderList(){
+  const k=S.per,q=$('#q').value.trim().toLowerCase(),qr=normRut(q);
+  const docs=((S.meses[k]||{}).docs||[]).filter(d=>(!S.filtro||d.lado===S.filtro)&&(!q||(d.razon||'').toLowerCase().includes(q)||String(d.folio).includes(q)||(qr.length>2&&normRut(d.rut).includes(qr)))).sort((a,b)=>(a.lado+a.fecha).localeCompare(b.lado+b.fecha));
+  $('#lTtl').textContent='Documentos de '+mName(k);
+  if(!docs.length){$('#lst').innerHTML='<tbody><tr><td class="empty">'+(q||S.filtro?'Nada coincide con el filtro.':'Aún no hay documentos en '+esc(mName(k))+'. Ingrésalos arriba o impórtalos desde el SII.')+'</td></tr></tbody>';$('#lst').className='';return}
+  $('#lst').className='stack';
+  $('#lst').innerHTML='<thead><tr><th>Fecha</th><th>Tipo</th><th>Folio</th><th>RUT</th><th>Razón social</th><th class="n">Neto</th><th class="n">IVA</th><th class="n">Total</th><th></th></tr></thead><tbody>'+docs.map(d=>{const s=sg(d.tipo);return '<tr><td>'+esc((d.fecha||'').split('-').reverse().join('/'))+'</td><td>'+(d.lado==='V'?'Venta':'Compra')+' · '+esc(tName(d.lado,d.tipo))+'</td><td>'+esc(d.folio)+'</td><td class="r">'+esc(fmtRut(d.rut))+'</td>'<td>'+esc(d.razon)+'</td><td class="n">'+$$(s*num(d.neto))+'</td><td class="n">'+$$(s*num(d.iva||d.ret))+(d.ivaNR?' <small>(no rec.)</small>':'')+'</td><td class="n">'+$$(s*num(d.total))+'</td><td><button class="sm ghost" data-ed="'+esc(d.id)+'">Editar</button></td></tr>'}).join('')+'</tbody>';
+}
+function renderAnual(){
+  const y=+$('#ay').value||+S.per.slice(0,4);$('#ay').value=y;$('#aY').textContent=y;
+  const rs=Array.from({length:12},(_,i)=>calc(y+'-'+String(i+1).padStart(2,'0')));
+  const mx=Math.max(1,...rs.map(r=>r.total));
+  $('#bars').innerHTML=rs.map((r,i)=>'<div class="b"><span>'+MESES[i].slice(0,3)+'</span><div><div class="t" style="width:'+(r.total/mx*100).toFixed(1)+'%"></div></div><span class="n'+(r.total?'':' z')+'" style="text-align:right">'+$$(r.total)+'</span></div>').join('');
+  const T=rs.reduce((a,r)=>{for(const f of['ventas','deb','cred','ivaPag','ppm','retHon','total','compras','hon'])a[f]=(a[f]||0)+r[f];return a},{});
+  $('#atab').className='stack';
+  $('#atab').innerHTML='<thead><tr><th>Mes</th><th class="n">Ventas netas</th><th class="n">Compras netas</th><th class="n">Débito</th><th class="n">Crédito</th><th class="n">IVA pagado</th><th class="n">PPM</th><th class="n">Total F29</th></tr></thead><tbody>'+rs.map((r,i)=>'<tr><td>'+MESES[i]+'</td><td class="n">'+$$(r.ventas)+'</td><td class="n">'+$$(r.compras)+'</td><td class="n">'+$$(r.deb)+'</td><td class="n">'+$$(r.cred)+'</td><td class="n">'+$$(r.ivaPag)+'</td><td class="n">'+$$(r.ppm)+'</td><td class="n">'+$$(r.total)+'</td></tr>').join('')+'<tr class="tot"><td>Total</td><td class="n">'+$$(T.ventas)+'</td><td class="n">'+$$(T.compras)+'</td><td class="n">'+$$(T.deb)+'</td><td class="n">'+$$(T.cred)+'</td><td class="n">'+$$(T.ivaPag)+'</td><td class="n">'+$$(T.ppm)+'</td><td class="n">'+$$(T.total)+'</td></tr></tbody>';
+  const otros=num((S.cfg.otros||{})[y]);if(document.activeElement!==$('#aOtros'))$('#aOtros').value=otros||'';
+  const base=T.ventas-T.compras-T.hon-otros,tasa=num(S.cfg.idpc),idpc=Math.max(0,Math.round(base*tasa/100)),saldo=idpc-T.ppm;
+  $('#renta').innerHTML='<tbody>'+[['Ingresos netos del año',T.ventas],['Compras y gastos con factura (incluye IVA no recuperable)',-T.compras],['Boletas de honorarios (bruto)',-T.hon],['Otros gastos sin factura',-otros],['Base imponible estimada',base,1],['Impuesto primera categoría ('+String(tasa).replace('.',',')+'%)',idpc],['Menos PPM pagados en el año',-T.ppm],[saldo>=0?'Saldo estimado a pagar en abril '+(y+1):'Devolución estimada en abril '+(y+1),Math.abs(saldo),2]].map(x=>'<tr'+(x[2]===2?' class="tot"':'')+'><td'+(x[2]===1?' style="font-weight:700"':'')+'>'+esc(x[0])+'</td><td class="n'+(x[1]<0?' neg':'')+'">'+$$(x[1])+'</td></tr>').join('')+'</tbody>';
+  $('#rNote').textContent=S.cfg.reg==='pp8'?'En Pro Pyme Transparente la empresa no paga primera categoría: la base se atribuye a los dueños, que la declaran en su Global Complementario. Los PPM se imputan a ese impuesto.':S.cfg.reg==='pp3'?'Pro Pyme General tributa sobre base de flujo (ingresos percibidos menos gastos pagados). La tasa de 12,5% rige transitoriamente para los años comerciales 2025 a 2027 (Ley 21.755). Los dueños además tributan por los retiros.':'Régimen General: tasa 27% sobre renta líquida imponible; esta estimación no incluye ajustes, depreciación ni corrección.';
+}
+
+/* ---------- formulario ---------- */
+const F=id=>$('#'+id);
+function setLado(l,keep){S.lado=l;document.querySelectorAll('[data-lado]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.lado===l));
+  const cur=F('fTipo').value;F('fTipo').innerHTML=TIPOS[l].map(t=>'<option value="'+t[0]+'">'+esc(t[1])+' ('+t[0]+')</option>').join('');if(keep&&TIPOS[l].some(t=>t[0]===keep))F('fTipo').value=keep;else if(TIPOS[l].some(t=>t[0]===cur))F('fTipo').value=cur;
+  F('lRut').textContent=l==='V'?'RUT cliente':'RUT proveedor';tipoUI()}
+function tipoUI(){const t=F('fTipo').value,bhe=t==='BHE';
+  F('wIva').hidden=bhe||EXENTOS.includes(t);F('wRet').hidden=!bhe;F('wExe').hidden=bhe;F('wNR').hidden=S.lado!=='C'||bhe||EXENTOS.includes(t);
+  F('lNeto').textContent=bhe?'Monto bruto':'Neto';F('lTot').textContent=bhe?'Líquido pagado':'Total';
+  F('lRaz').textContent=S.lado==='V'?'Cliente':'Proveedor / emisor';recalc('neto')}
+function recalc(src){const t=F('fTipo').value,ex=EXENTOS.includes(t);let n=num(F('fNeto').value),e=num(F('fExe').value),i=num(F('fIva').value),tot=num(F('fTot').value);
+  if(t==='BHE'){if(src!=='ret')F('fRet').value=n?Math.round(n*num(S.cfg.ret)/100):'';F('fTot').value=n?n-num(F('fRet').value):'';return}
+  if(ex){F('fIva').value='';if(src==='tot'){F('fExe').value=tot;F('fNeto').value=''}else F('fTot').value=(n+e)||'';return}
+  if(src==='neto'||src==='exe'){i=Math.round(n*0.19);F('fIva').value=n?i:'';F('fTot').value=(n+i+e)||''}
+  else if(src==='iva'){F('fTot').value=(n+i+e)||''}
+  else if(src==='tot'){n=Math.round((tot-e)/1.19);F('fNeto').value=tot?n:'';F('fIva').value=tot?tot-e-n:''}}
+F('fNeto').oninput=()=>recalc('neto');F('fExe').oninput=()=>recalc('exe');F('fIva').oninput=()=>recalc('iva');F('fTot').oninput=()=>recalc('tot');F('fRet').oninput=()=>recalc('ret');
+F('fTipo').onchange=tipoUI;F('fFecha').onchange=()=>{if(F('fFecha').value&&!S.edit)F('fPer').value=F('fFecha').value.slice(0,7)};
+F('fRut').onblur=()=>{const v=F('fRut').value;if(v){F('fRut').value=fmtRut(v);F('fWarn').textContent=rutOk(v)?'':'El RUT no tiene un dígito verificador válido. Revísalo.'}};
+document.querySelectorAll('[data-lado]').forEach(b=>b.onclick=()=>setLado(b.dataset.lado));
+function resetForm(){S.edit=null;F('fm').reset();F('fFecha').value=S.per===curKey?today.toISOString().slice(0,10):S.per+'-01';F('fPer').value=S.per;F('fTtl').textContent='Ingresar documento';F('fSave').textContent='Agregar documento';F('fCancel').hidden=F('fDel').hidden=true;F('fWarn').textContent='';tipoUI()}
+F('fCancel').onclick=resetForm;
+F('fm').onsubmit=ev=>{ev.preventDefault();const t=F('fTipo').value,nr=F('fNR').checked&&!F('wNR').hidden;
+  const d={lado:S.lado,tipo:t,fecha:F('fFecha').value,rut:normRut(F('fRut').value),razon:F('fRaz').value.trim(),folio:F('fFolio').value.trim(),exento:num(F('fExe').value),neto:num(F('fNeto').value),iva:nr||t==='BHE'?0:num(F('fIva').value),ivaNR:nr?num(F('fIva').value):0,ret:t==='BHE'?num(F('fRet').value):0,total:num(F('fTot').value),fuente:'manual'};
+  if(!d.total&&!d.neto&&!d.exento){F('fWarn').textContent='Ingresa al menos el neto, exento o total.';return}
+  if(!d.folio)d.folio=String(Date.now()).slice(-8);
+  const per=F('fPer').value||d.fecha.slice(0,7);d.id=idOf(d);
+  if(S.edit){const o=S.meses[S.edit.per];if(o){o.docs=o.docs.filter(x=>x.id!==S.edit.id);saveMes(S.edit.per)}}
+  const m=S.meses[per]||(S.meses[per]={docs:[],rem:null});const dup=m.docs.some(x=>x.id===d.id);m.docs=m.docs.filter(x=>x.id!==d.id).concat(d);saveMes(per);
+  toast(S.edit?'Documento actualizado':dup?'Ya existía ese folio: se reemplazó':'Documento agregado a '+mName(per));const l=S.lado,tp=t;resetForm();setLado(l,tp);render()};
+F('fDel').onclick=()=>{if(!S.edit)return;const{per,id}=S.edit,m=S.meses[per],d=m.docs.find(x=>x.id===id);m.docs=m.docs.filter(x=>x.id!==id);saveMes(per);resetForm();render();
+  toast('Documento eliminado',()=>{m.docs.push(d);saveMes(per);render()})};
+F('lst').onclick=e=>{const b=e.target.closest('[data-ed]');if(!b)return;const d=((S.meses[S.per]||{}).docs||[]).find(x=>x.id===b.dataset.ed);if(!d)return;
+  S.edit={per:S.per,id:d.id};setLado(d.lado,d.tipo);F('fFecha').value=d.fecha||'';F('fPer').value=S.per;F('fFolio').value=d.folio||'';F('fRut').value=fmtRut(d.rut);F('fRaz').value=d.razon||'';
+  F('fNeto').value=d.neto||'';F('fExe').value=d.exento||'';F('fIva').value=d.iva||d.ivaNR||'';F('fNR').checked=!!d.ivaNR;F('fRet').value=d.ret||'';F('fTot').value=d.total||'';
+  F('fTtl').textContent='Editar documento';F('fSave').textContent='Guardar cambios';F('fCancel').hidden=F('fDel').hidden=false;F('fm').scrollIntoView({behavior:'smooth',block:'start'})};
+document.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{S.filtro=b.dataset.f;document.querySelectorAll('[data-f]').forEach(x=>x.setAttribute('aria-pressed',x===b));renderList()});
+F('q').oninput=renderList;
+function csv(){const docs=(S.meses[S.per]||{}).docs||[];return ['Operacion;Tipo;Fecha;Folio;RUT;Razon social;Exento;Neto;IVA;IVA no recuperable;Retencion;Total'].concat(docs.map(d=>[d.lado==='V'?'Venta':'Compra',d.tipo,d.fecha,d.folio,fmtRut(d.rut),'"'+String(d.razon||'').replace(/"/g,'""')+'"',d.exento,d.neto,d.iva,d.ivaNR,d.ret,d.total].join(';'))).join('\n')}
+F('bCopy').onclick=async()=>{try{await navigator.clipboard.writeText(csv());toast('CSV copiado. Pégalo en Excel.')}catch(e){toast('No se pudo copiar en este navegador')}};
+F('bDl').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv()],{type:'text/csv'}));a.download='documentos_'+S.per+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)};
+
+/* ---------- período ---------- */
+const setPer=k=>{if(!/^\d{4}-\d{2}$/.test(k))return;S.per=k;$('#ay').value=k.slice(0,4);if(!S.edit)resetForm();render()};
+F('per').onchange=()=>setPer(F('per').value);F('pPrev').onclick=()=>setPer(addM(S.per,-1));F('pNext').onclick=()=>setPer(addM(S.per,1));
+F('ay').onchange=renderAnual;
+let oT;F('aOtros').oninput=()=>{clearTimeout(oT);oT=setTimeout(()=>{const y=$('#ay').value;S.cfg.otros={...(S.cfg.otros||{}),[y]:num(F('aOtros').value)};saveCfg();renderAnual()},700)};
+
+/* ---------- ajustes ---------- */
+function fillCfg(){const c=S.cfg;F('cRut').value=fmtRut(c.rut);F('cRaz').value=c.raz||'';F('cReg').value=c.reg||'pp3';F('cPpm').value=String(c.ppm).replace('.',',');F('cIdpc').value=String(c.idpc).replace('.',',');F('cRet').value=String(c.ret).replace('.',',');F('cRem').value=c.remIni||'';F('cRemM').value=c.remMes||''}
+F('cReg').onchange=F('cDef').onclick=()=>{const r=REG[F('cReg').value];F('cPpm').value=String(r.ppm).replace('.',',');F('cIdpc').value=String(r.idpc).replace('.',',');F('cRet').value='15,25'};
+F('cf').onsubmit=e=>{e.preventDefault();const r=F('cRut').value;if(r&&!rutOk(r)){toast('El RUT de la empresa no es válido');return}
+  Object.assign(S.cfg,{rut:normRut(r),raz:F('cRaz').value.trim(),reg:F('cReg').value,ppm:num(F('cPpm').value),idpc:num(F('cIdpc').value),ret:num(F('cRet').value),remIni:num(F('cRem').value),remMes:F('cRemM').value});saveCfg();render();toast('Ajustes guardados')};
+F('mRemB').onclick=()=>{const v=F('mRem').value.trim(),m=S.meses[S.per]||(S.meses[S.per]={docs:[],rem:null});m.rem=v===''?null:num(v);saveMes(S.per);render();toast('Remanente guardado')};
+
+/* ---------- importación ---------- */
+async function readText(f){const b=await f.arrayBuffer();let t=new TextDecoder('utf-8').decode(b);const enc=(t.slice(0,200).match(/encoding="([^"]+)"/i)||[])[1];if(t.includes(String.fromCharCode(65533))||(enc&&/8859|latin/i.test(enc)))t=new TextDecoder('iso-8859-1').decode(b);return t.replace(/^﻿/,'')}
+function parseCSV(t){const dl=(t.split('\n')[0].match(/;/g)||[]).length>=(t.split('\n')[0].match(/,/g)||[]).length?';':',';const rows=[];let row=[],f='',q=false;
+  for(let i=0;i<t.length;i++){const c=t[i];if(q){if(c==='"'){if(t[i+1]==='"'){f+='"';i++}else q=false}else f+=c}else if(c==='"')q=true;else if(c===dl){row.push(f);f=''}else if(c==='\n'){row.push(f.replace(/\r$/,''));rows.push(row);row=[];f=''}else f+=c}
+  if(f||row.length){row.push(f);rows.push(row)}return rows.filter(r=>r.some(x=>x.trim()))}
+const nh=h=>h.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+const isoF=s=>{s=String(s||'').trim();let m=s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);if(m)return m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);return m?m[0]:''};
+const tipoOf=s=>{s=String(s||'');const m=s.match(/\((\d+)\)/)||s.match(/\d+/);return m?(m[1]||m[0]):s};
+function fromCSV(name,t){const rows=parseCSV(t);if(rows.length<2)return null;const H=rows[0].map(nh);
+  const col=(...ns)=>{for(const n of ns){const i=H.indexOf(n);if(i>=0)return i}return -1};
+  const c={tipo:col('tipo doc','tipo documento','tipo dte','tipo'),rut:col('rut proveedor','rut cliente','rut'),raz:col('razon social'),folio:col('folio'),fecha:col('fecha docto','fecha documento','fecha emision','fecha'),exe:col('monto exento'),neto:col('monto neto'),iva:col('monto iva recuperable','monto iva','iva'),nr:col('monto iva no recuperable'),tot:col('monto total','total'),cant:col('total documentos')};
+  if(c.tipo<0||c.tot<0&&c.neto<0)return {name,err:'No reconozco las columnas. Usa el CSV de "Descargar detalles" del Registro de Compras y Ventas.'};
+  let lado=H.includes('rut proveedor')?'C':H.includes('rut cliente')?'V':/compra/i.test(name)?'C':/venta/i.test(name)?'V':'C';
+  const fm=name.match(/(20\d{2})(0[1-9]|1[0-2])/);
+  const docs=rows.slice(1).map(r=>{const g=i=>i>=0?r[i]:'';const tipo=tipoOf(g(c.tipo));const d={lado,tipo,fecha:isoF(g(c.fecha)),rut:normRut(g(c.rut)),razon:String(g(c.raz)).trim(),folio:String(g(c.folio)).trim(),exento:num(g(c.exe)),neto:num(g(c.neto)),iva:num(g(c.iva)),ivaNR:num(g(c.nr)),ret:0,total:num(g(c.tot)),fuente:'rcv'};
+    if(c.folio<0)d.folio='RES'+tipo;if(d.tipo==='61'){for(const f of['exento','neto','iva','ivaNR','total'])d[f]=Math.abs(d[f])}if(!d.neto&&!d.iva&&d.total&&BOLETAS.includes(tipo)&&!EXENTOS.includes(tipo)){d.neto=Math.round((d.total-d.exento)/1.19);d.iva=d.total-d.exento-d.neto}d.id=idOf(d);return d}).filter(d=>d.tipo&&/^\d+$/.test(d.tipo));
+  const cnt={};docs.forEach(d=>{const k=d.fecha.slice(0,7);if(k)cnt[k]=(cnt[k]||0)+1});
+  const per=fm?fm[1]+'-'+fm[2]:Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a])[0]||S.per;
+  return {name,kind:'RCV',lado,per,docs}}
+function fromXML(name,t){const x=new DOMParser().parseFromString(t,'application/xml');if(x.getElementsByTagName('parsererror').length)return {name,err:'El XML no se pudo leer.'};
+  const out=[];const me=normRut(S.cfg.rut);
+  for(const D of x.getElementsByTagName('Documento')){const g=n=>{const e=D.getElementsByTagName(n)[0];return e?e.textContent.trim():''};
+    const em=normRut(g('RUTEmisor')),rc=normRut(g('RUTRecep'));const lado=me?(em===me?'V':'C'):'C';
+    const d={lado,tipo:g('TipoDTE'),fecha:isoF(g('FchEmis')),rut:lado==='V'?rc:em,razon:lado==='V'?g('RznSocRecep'):(g('RznSoc')||g('RznSocEmisor')),folio:g('Folio'),exento:num(g('MntExe')),neto:num(g('MntNeto')),iva:num(g('IVA')),ivaNR:0,ret:0,total:num(g('MntTotal')),fuente:'xml'};d.id=idOf(d);if(d.tipo)out.push(d)}
+  if(!out.length)return {name,err:'No encontré documentos tributarios en el XML.'};
+  return {name,kind:'XML',lado:'auto',per:'',docs:out,noRut:!me}}
+async function handleFiles(list){for(const f of list){const t=await readText(f);const r=/\.xml$/i.test(f.name)||t.trimStart().startsWith('<')?fromXML(f.name,t):fromCSV(f.name,t);if(r)S.pend.push(r)}renderPrev()}
+function existing(d,per){return((S.meses[per]||{}).docs||[]).some(x=>x.id===d.id)}
+function renderPrev(){const p=S.pend;if(!p.length){$('#prev').innerHTML='';return}
+  let n=0,u=0;const rows=p.map((f,i)=>{if(f.err)return '<tr><td>'+esc(f.name)+'</td><td colspan="4" class="warn">'+esc(f.err)+'</td><td><button class="sm ghost" data-rm="'+i+'">Quitar</button></td></tr>';
+    const ex=f.docs.filter(d=>existing(d,f.per||d.fecha.slice(0,7))).length;n+=f.docs.length-ex;u+=ex;
+    const V=f.docs.filter(d=>d.lado==='V').length;
+    return '<tr><td>'+esc(f.name)+(f.noRut?'<br><small class="warn">Sin RUT de empresa en Ajustes: se tratan como compras</small>':'')+'</td><td>'+(f.kind==='RCV'?'<select data-lado-i="'+i+'" aria-label="Tipo"><option value="V"'+(f.lado==='V'?' selected':'')+'>Ventas</option><option value="C"'+(f.lado==='C'?' selected':'')+'>Compras</option></select>':esc(V+' ventas, '+(f.docs.length-V)+' compras'))+'</td><td>'+(f.kind==='RCV'?'<input type="month" data-per-i="'+i+'" value="'+esc(f.per)+'" aria-label="Período">':'Según fecha de emisión')+'</td><td class="n">'+f.docs.length+'</td><td class="n">'+$$(f.docs.reduce((a,d)=>a+sg(d.tipo)*num(d.iva),0))+'</td><td><button class="sm ghost" data-rm="'+i+'">Quitar</button></td></tr>'}).join('');
+  $('#prev').innerHTML='<div class="scroll"><table class="stack"><thead><tr><th>Archivo</th><th>Contenido</th><th>Período F29</th><th class="n">Docs</th><th class="n">IVA</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div><p class="note">'+n+' documentos nuevos'+(u?', '+u+' ya existían y se actualizarán con los datos del SII':'')+'.</p><div class="row" style="margin-top:10px"><button class="pri" id="bImp"'+(n+u?'':' disabled')+'>Importar '+(n+u)+' documentos</button><button class="ghost" id="bClr">Descartar</button></div>'}
+F('prev').onclick=e=>{const rm=e.target.closest('[data-rm]');if(rm){S.pend.splice(+rm.dataset.rm,1);renderPrev();return}
+  if(e.target.id==='bClr'){S.pend=[];renderPrev();return}
+  if(e.target.id==='bImp'){const touched=new Set();let c=0;for(const f of S.pend){if(f.err)continue;for(const d of f.docs){if(f.kind==='RCV'){d.lado=f.lado;d.id=idOf(d)}const per=f.per||d.fecha.slice(0,7)||S.per;const m=S.meses[per]||(S.meses[per]={docs:[],rem:null});m.docs=m.docs.filter(x=>x.id!==d.id).concat(d);touched.add(per);c++}}
+    touched.forEach(saveMes);S.pend=[];render();toast(c+' documentos importados en '+[...touched].sort().map(mName).join(', '));const ps=[...touched].sort();if(ps.length===1)setPer(ps[0])}};
+F('prev').onchange=e=>{const a=e.target.dataset;if(a.ladoI!=null)S.pend[+a.ladoI].lado=e.target.value;if(a.perI!=null)S.pend[+a.perI].per=e.target.value;renderPrev()};
+F('files').onchange=e=>{handleFiles([...e.target.files]);e.target.value=''};
+const dr=F('drop');dr.ondragover=e=>{e.preventDefault();dr.classList.add('over')};dr.ondragleave=()=>dr.classList.remove('over');dr.ondrop=e=>{e.preventDefault();dr.classList.remove('over');handleFiles([...e.dataTransfer.files])};
+
+/* ---------- vistas ---------- */
+const VIEWS=['documentos','importar','anual','ajustes'];
+function route(){const h=location.hash.slice(1),v=VIEWS.includes(h)?h:'documentos';VIEWS.forEach(x=>{$('#v-'+x).classList.toggle('on',x===v);const a=document.querySelector('nav.tabs a[href="#'+x+'"]');a.toggleAttribute('aria-current',x===v);if(x===v)a.setAttribute('aria-current','page')})}
+window.addEventListener('hashchange',route);
+$('#ay').value=S.per.slice(0,4);fillCfg();setLado('V');resetForm();route();init();
+}
+</script>
+</body>
+</html>
